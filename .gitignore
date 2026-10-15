@@ -1,0 +1,63 @@
+# Build/runtime outputs and protected credentials
+/target/
+/state/
+/config/credentials/
+/config/oauth-credentials.json
+/config/provision-*.sql
+credentials.json
+database-credentials.json
+oauth-credentials.json
+oauth-state.json
+__pycache__/
+.aws/
+
+# Local-only agent instructions and state
+AGENTS.md
+AGENTS.override.md
+CLAUDE.md
+GEMINI.md
+.agents/
+.codex/
+.claude/
+.gemini/
+superpowers/
+
+# Local release artifacts and deployment configurations
+/dist/
+/config/
+
+# Go build and coverage outputs
+/bin/
+*.test
+/coverage.out
+
+# Local environment files and network captures
+.env
+.env.*
+!.env.example
+*.har
+*.pcap
+*.pcapng
+
+# Keep populated example configs private; publish placeholders only
+/examples/**/*.json
+!/examples/**/*.example.json
+
+# Standalone compiled binaries and libraries
+/mariadb-mcp
+/mariadb-mcp-*
+*.exe
+*.bin
+*.dll
+*.so
+*.so.*
+*.dylib
+*.a
+*.lib
+*.o
+*.obj
+*.rlib
+*.rmeta
+*.wasm
+*.pdb
+*.dSYM/

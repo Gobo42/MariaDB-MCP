@@ -1,0 +1,33 @@
+[Unit]
+Description=Configuration-driven MariaDB MCP service
+After=mariadb.service
+StartLimitIntervalSec=30
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=mcpagent
+Group=mcpagent
+ExecStart=/usr/local/bin/mariadb-mcp serve --config /etc/mariadb-mcp/mcp.json
+Restart=on-failure
+RestartSec=5
+RestartPreventExitStatus=64 78
+TimeoutStopSec=10
+UMask=0077
+StateDirectory=mariadb-mcp
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/mariadb-mcp
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

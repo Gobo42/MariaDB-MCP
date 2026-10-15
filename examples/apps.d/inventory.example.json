@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "app_id": "inventory",
+  "description": "Inventory items and controlled label updates",
+  "connection_file": "../connections/inventory.json",
+  "database_user": "mcp_inventory",
+  "access": "read_write",
+  "grants": [
+    {
+      "table": "items",
+      "privileges": [
+        "SELECT",
+        "UPDATE"
+      ]
+    }
+  ],
+  "schema_checks": [
+    {
+      "table": "items",
+      "columns": [
+        "id",
+        "label",
+        "price",
+        "attributes",
+        "updated_at",
+        "version"
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "get_item",
+      "description": "Read an item by ID with exact price and JSON attributes",
+      "kind": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,19}$",
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "sql": "SELECT id, label, price, attributes, updated_at, version FROM items WHERE id = ? ORDER BY id LIMIT ?",
+      "bindings": [
+        {
+          "source": "argument",
+          "name": "id",
+          "db_type": "bigint"
+        },
+        {
+          "source": "runtime",
+          "name": "fetch_limit",
+          "db_type": "integer"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "bigint"
+        },
+        {
+          "name": "label",
+          "type": "string"
+        },
+        {
+          "name": "price",
+          "type": "decimal",
+          "units": "USD"
+        },
+        {
+          "name": "attributes",
+          "type": "json",
+          "nullable": true
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp"
+        },
+        {
+          "name": "version",
+          "type": "integer"
+        }
+      ],
+      "max_rows": 1,
+      "default_limit": 1,
+      "empty_result": "not_found"
+    },
+    {
+      "name": "set_item_label",
+      "description": "Overwrite one item's label only if its version still matches; zero changed rows fails",
+      "kind": "execute",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,19}$",
+            "maxLength": 20
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740990
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "expected_version"
+        ],
+        "additionalProperties": false
+      },
+      "sql": "UPDATE items SET label = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?",
+      "bindings": [
+        {
+          "source": "argument",
+          "name": "label",
+          "db_type": "string"
+        },
+        {
+          "source": "runtime",
+          "name": "now_utc",
+          "db_type": "timestamp"
+        },
+        {
+          "source": "argument",
+          "name": "id",
+          "db_type": "bigint"
+        },
+        {
+          "source": "argument",
+          "name": "expected_version",
+          "db_type": "integer"
+        }
+      ],
+      "min_affected_rows": 1,
+      "max_affected_rows": 1,
+      "destructive": true,
+      "idempotent": false
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+# Later-use illustration only; not installed during private acceptance.
+# Replace the hostname, certificate paths and browser source allowlist.
+server {
+    listen 443 ssl;
+    server_name mcp.example.invalid;
+    ssl_certificate /etc/nginx/certs/MCP_CERTIFICATE;
+    ssl_certificate_key /etc/nginx/certs/MCP_PRIVATE_KEY;
+    # Include the configured public_base_url prefix here if one is used.
+    location ~ ^/oauth/(authorize|login|consent)$ {
+        allow 127.0.0.1; # Replace with your home/VPN source addresses.
+        deny all;
+        access_log off;
+        proxy_pass http://127.0.0.1:8810;
+        proxy_set_header Host $host;
+        proxy_set_header Authorization $http_authorization;
+        proxy_buffering off;
+    }
+    location / {
+        access_log off;
+        proxy_pass http://127.0.0.1:8810;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_read_timeout 90s;
+    }
+}

@@ -1,0 +1,20 @@
+
+DROP DATABASE IF EXISTS tapo;
+DROP DATABASE IF EXISTS inventory;
+CREATE DATABASE tapo;
+CREATE DATABASE inventory;
+CREATE TABLE tapo.sensors(id VARCHAR(128) PRIMARY KEY,name TEXT NOT NULL) ENGINE=InnoDB;
+CREATE TABLE tapo.measurements(id BIGINT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE tapo.collector_status(id BIGINT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE tapo.schema_migrations(version INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO tapo.schema_migrations VALUES(1);
+INSERT INTO tapo.sensors VALUES('a','Room A'),('b','Room B'),('c','Room C');
+CREATE TABLE inventory.items(id BIGINT UNSIGNED PRIMARY KEY,label VARCHAR(128) NOT NULL,price DECIMAL(65,30) NOT NULL,attributes JSON,updated_at DATETIME(6) NOT NULL,version BIGINT NOT NULL) ENGINE=InnoDB;
+INSERT INTO inventory.items VALUES(7,'Original',123.45,'{"exact":12345678901234567890.123456789}','2026-10-12 10:20:30',1);
+CREATE USER IF NOT EXISTS 'mcpagent'@'localhost' IDENTIFIED BY 'fixture-only-password';
+CREATE USER IF NOT EXISTS 'mcp_inventory'@'localhost' IDENTIFIED BY 'fixture-only-password';
+GRANT SELECT ON tapo.sensors TO 'mcpagent'@'localhost';
+GRANT SELECT ON tapo.measurements TO 'mcpagent'@'localhost';
+GRANT SELECT ON tapo.collector_status TO 'mcpagent'@'localhost';
+GRANT SELECT ON tapo.schema_migrations TO 'mcpagent'@'localhost';
+GRANT SELECT,UPDATE ON inventory.items TO 'mcp_inventory'@'localhost';

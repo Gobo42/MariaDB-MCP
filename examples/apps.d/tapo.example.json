@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "app_id": "tapo",
+  "description": "Stored Tapo environmental telemetry",
+  "connection_file": "../connections/tapo.json",
+  "database_user": "mcpagent",
+  "access": "read_only",
+  "grants": [
+    {
+      "table": "sensors",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "table": "measurements",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "table": "collector_status",
+      "privileges": [
+        "SELECT"
+      ]
+    },
+    {
+      "table": "schema_migrations",
+      "privileges": [
+        "SELECT"
+      ]
+    }
+  ],
+  "schema_checks": [
+    {
+      "table": "sensors",
+      "columns": [
+        "id",
+        "name"
+      ]
+    }
+  ],
+  "schema_version": {
+    "table": "schema_migrations",
+    "column": "version",
+    "expected": 1
+  },
+  "tools": [
+    {
+      "name": "list_sensor_names",
+      "description": "List stored sensor identifiers and display names",
+      "kind": "query",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "sql": "SELECT id, name FROM sensors ORDER BY id LIMIT ?",
+      "bindings": [
+        {
+          "source": "runtime",
+          "name": "fetch_limit",
+          "db_type": "integer"
+        }
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ],
+      "max_rows": 1000,
+      "default_limit": 100,
+      "empty_result": "empty"
+    }
+  ]
+}

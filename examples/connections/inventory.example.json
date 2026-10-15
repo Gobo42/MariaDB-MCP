@@ -1,0 +1,5 @@
+{
+  "socket": "/run/mysqld/mysqld.sock",
+  "database": "inventory",
+  "credentials_file": "../credentials/inventory.json"
+}
