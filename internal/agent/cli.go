@@ -62,12 +62,12 @@ func Run(args []string) error {
 	}
 	id := identity(registry)
 	if command == "init-state" {
-		if e = initStore(registry.Server.StateDirectory, id); e == nil {
+		if e = initStore(registry.Server.OAuth.StateDirectory, id); e == nil {
 			fmt.Println("Initialized protected OAuth state.")
 		}
 		return e
 	}
-	store, e := openStore(registry.Server.StateDirectory, id)
+	store, e := openStore(registry.Server.OAuth.StateDirectory, id)
 	if e != nil {
 		return e
 	}

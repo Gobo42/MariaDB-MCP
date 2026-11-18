@@ -90,3 +90,10 @@ Only scopes in the authorization URL are selected initially. Check additional
 read or write scopes to approve them, or uncheck scopes you do not want to grant.
 The issued token contains exactly the selected scopes; existing tokens and
 refreshes keep their previous permissions. Restart after changing app files.
+
+OAuth settings are grouped under `oauth` in `mcp.json`, with
+`"provider": "builtin"` preserving the built-in login, consent, and token behavior.
+Existing flat version-1 configurations remain supported. See
+[Configure OAuth](docs/oauth-configuration.md) for fields and a migration that
+preserves credentials and existing grants. External providers require additional
+implementation; an unsupported provider is rejected.

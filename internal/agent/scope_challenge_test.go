@@ -152,7 +152,7 @@ func TestOAuthScopesFromMCPChallenge(t *testing.T) {
 		t.Fatal("unexpected scope guidance")
 	}
 	verifier := strings.Repeat("v", 64)
-	q := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {matches[1]}, "state": {"opaque-state"}, "code_challenge": {digest(verifier)}, "code_challenge_method": {"S256"}}
+	q := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.OAuth.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {matches[1]}, "state": {"opaque-state"}, "code_challenge": {digest(verifier)}, "code_challenge_method": {"S256"}}
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	resp, err := client.Get(server.URL + "/agent/oauth/authorize?" + q.Encode())
 	if err != nil {

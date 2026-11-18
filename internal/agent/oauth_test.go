@@ -22,7 +22,7 @@ func authFixture(t *testing.T) (*oauthService, *httptest.Server) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	r := &Registry{Server: Server{Listen: "127.0.0.1:8810", PublicBaseURL: "https://mcp.example.invalid/agent", RedirectURIs: []string{"http://127.0.0.1:9876/callback"}}, Auth: AuthConfig{"owner", hash, "client", "secret"}, Apps: []*App{{ID: "tapo", Enabled: true, Tools: []*Tool{{Kind: "query", Enabled: true}}}}}
+	r := &Registry{Server: Server{Listen: "127.0.0.1:8810", PublicBaseURL: "https://mcp.example.invalid/agent", OAuth: OAuthSettings{Provider: "builtin", RedirectURIs: []string{"http://127.0.0.1:9876/callback"}}}, Auth: AuthConfig{"owner", hash, "client", "secret"}, Apps: []*App{{ID: "tapo", Enabled: true, Tools: []*Tool{{Kind: "query", Enabled: true}}}}}
 	id := identity(r)
 	if e = initStore(dir, id); e != nil {
 		t.Fatal(e)
@@ -46,10 +46,10 @@ func hiddenValue(t *testing.T, b []byte, n string) string {
 }
 func TestOAuthFlow(t *testing.T) {
 	a, s := authFixture(t)
-	a.registry.Server.RedirectURIs = append(a.registry.Server.RedirectURIs, "https://other.allowed.invalid/callback")
+	a.registry.Server.OAuth.RedirectURIs = append(a.registry.Server.OAuth.RedirectURIs, "https://other.allowed.invalid/callback")
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	v := strings.Repeat("a", 64)
-	q := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {"tapo:read"}, "state": {"opaque"}, "ui_locales": {"en-US"}, "code_challenge": {digest(v)}, "code_challenge_method": {"S256"}}
+	q := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.OAuth.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {"tapo:read"}, "state": {"opaque"}, "ui_locales": {"en-US"}, "code_challenge": {digest(v)}, "code_challenge_method": {"S256"}}
 	resp, e := client.Get(s.URL + "/agent/oauth/authorize?" + q.Encode())
 	if e != nil {
 		t.Fatal(e)
@@ -131,7 +131,7 @@ func TestURLPreservesEscapedPrefix(t *testing.T) {
 }
 func TestOAuthRequestBoundaries(t *testing.T) {
 	a, s := authFixture(t)
-	base := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {"tapo:read"}, "state": {"opaque"}, "ui_locales": {"en-US"}, "code_challenge": {digest(strings.Repeat("a", 64))}, "code_challenge_method": {"S256"}}
+	base := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.OAuth.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {"tapo:read"}, "state": {"opaque"}, "ui_locales": {"en-US"}, "code_challenge": {digest(strings.Repeat("a", 64))}, "code_challenge_method": {"S256"}}
 	for _, c := range []struct{ key, value string }{{"code_challenge_method", "plain"}, {"resource", "https://other.invalid/mcp"}, {"scope", "tapo:write"}, {"redirect_uri", "https://other.invalid/cb"}, {"unknown", "x"}} {
 		q := url.Values{}
 		for k, v := range base {
@@ -206,7 +206,7 @@ func TestOAuthUILocales(t *testing.T) {
 		{"duplicate parameter", []string{"en-US", "fr"}, http.StatusBadRequest},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			q := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {"tapo:read"}, "state": {"opaque"}, "code_challenge": {digest(strings.Repeat("a", 64))}, "code_challenge_method": {"S256"}, "ui_locales": c.locales}
+			q := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.OAuth.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {"tapo:read"}, "state": {"opaque"}, "code_challenge": {digest(strings.Repeat("a", 64))}, "code_challenge_method": {"S256"}, "ui_locales": c.locales}
 			resp, err := http.Get(server.URL + "/agent/oauth/authorize?" + q.Encode())
 			if err != nil {
 				t.Fatal(err)

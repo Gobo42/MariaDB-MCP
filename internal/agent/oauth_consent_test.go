@@ -31,7 +31,7 @@ func consentFixture(t *testing.T, requested string) (*oauthService, *httptest.Se
 	server := httptest.NewServer(a.routes(nil))
 	t.Cleanup(server.Close)
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	q := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {requested}, "state": {"keep-state"}, "code_challenge": {digest(strings.Repeat("v", 64))}, "code_challenge_method": {"S256"}}
+	q := url.Values{"response_type": {"code"}, "client_id": {"client"}, "redirect_uri": {a.registry.Server.OAuth.RedirectURIs[0]}, "resource": {a.identity.Resource}, "scope": {requested}, "state": {"keep-state"}, "code_challenge": {digest(strings.Repeat("v", 64))}, "code_challenge_method": {"S256"}}
 	response, err := client.Get(server.URL + "/agent/oauth/authorize?" + q.Encode())
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +128,7 @@ func TestOAuthConsentGrantsOnlyExplicitSelections(t *testing.T) {
 			if callback.Query().Get("state") != "keep-state" || callback.Query().Get("iss") != "https://mcp.example.invalid/agent" {
 				t.Fatal("callback binding changed")
 			}
-			response, body = post("/agent/oauth/token", url.Values{"grant_type": {"authorization_code"}, "client_id": {"client"}, "client_secret": {"secret"}, "resource": {a.identity.Resource}, "code": {callback.Query().Get("code")}, "redirect_uri": {a.registry.Server.RedirectURIs[0]}, "code_verifier": {strings.Repeat("v", 64)}})
+			response, body = post("/agent/oauth/token", url.Values{"grant_type": {"authorization_code"}, "client_id": {"client"}, "client_secret": {"secret"}, "resource": {a.identity.Resource}, "code": {callback.Query().Get("code")}, "redirect_uri": {a.registry.Server.OAuth.RedirectURIs[0]}, "code_verifier": {strings.Repeat("v", 64)}})
 			var token Tokens
 			if json.Unmarshal(body, &token) != nil || response.StatusCode != 200 || token.Scope != tc.want {
 				t.Fatalf("token scopes: status=%d got=%q want=%q", response.StatusCode, token.Scope, tc.want)

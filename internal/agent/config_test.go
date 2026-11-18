@@ -44,7 +44,7 @@ func TestRegistryBoundaries(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if r.Server.AppsDirectory != filepath.Join(root, "apps.d") || r.Server.StateDirectory != filepath.Join(root, "state") {
+	if r.Server.AppsDirectory != filepath.Join(root, "apps.d") || r.Server.OAuth.StateDirectory != filepath.Join(root, "state") {
 		t.Fatal("path normalization")
 	}
 	b, e := os.ReadFile(filepath.Join(root, "apps.d/inventory.json"))

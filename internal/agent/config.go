@@ -15,13 +15,11 @@ import (
 )
 
 type Server struct {
-	Version              int      `json:"version"`
-	Listen               string   `json:"listen"`
-	PublicBaseURL        string   `json:"public_base_url"`
-	AppsDirectory        string   `json:"apps_directory"`
-	OAuthCredentialsFile string   `json:"oauth_credentials_file"`
-	StateDirectory       string   `json:"state_directory"`
-	RedirectURIs         []string `json:"redirect_uris"`
+	Version       int           `json:"version"`
+	Listen        string        `json:"listen"`
+	PublicBaseURL string        `json:"public_base_url"`
+	AppsDirectory string        `json:"apps_directory"`
+	OAuth         OAuthSettings `json:"oauth"`
 }
 type Credentials struct {
 	Username string `json:"username"`
@@ -370,27 +368,22 @@ func loadRegistry(file string) (*Registry, error) {
 	if e != nil {
 		return nil, e
 	}
-	r := &Registry{Server: Server{Listen: "127.0.0.1:8810", StateDirectory: "/var/lib/mariadb-mcp"}}
-	if e = readJSON(file, &r.Server); e != nil {
+	r := &Registry{Server: Server{Listen: "127.0.0.1:8810", OAuth: OAuthSettings{StateDirectory: "/var/lib/mariadb-mcp"}}}
+	if e = readServer(file, &r.Server); e != nil {
 		return nil, e
 	}
 	s := &r.Server
 	host, port, e := net.SplitHostPort(s.Listen)
 	pn, pe := strconv.Atoi(port)
-	if e != nil || pe != nil || pn < 0 || pn > 65535 || net.ParseIP(host) == nil || port == "" || s.Version != 1 || len(s.RedirectURIs) == 0 {
+	if e != nil || pe != nil || pn < 0 || pn > 65535 || net.ParseIP(host) == nil || port == "" || s.Version != 1 {
 		return nil, errConfig
 	}
 	u, e := url.Parse(s.PublicBaseURL)
 	if e != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
 		return nil, errConfig
 	}
-	seen := map[string]bool{}
-	for _, raw := range s.RedirectURIs {
-		u, e := url.Parse(raw)
-		if e != nil || seen[raw] || u.User != nil || u.Hostname() == "" || u.Fragment != "" || !(u.Scheme == "https" || u.Scheme == "http" && net.ParseIP(u.Hostname()) != nil && net.ParseIP(u.Hostname()).IsLoopback()) {
-			return nil, errConfig
-		}
-		seen[raw] = true
+	if e = s.OAuth.validate(); e != nil {
+		return nil, e
 	}
 	if s.AppsDirectory, e = resolve(file, s.AppsDirectory, true); e != nil {
 		return nil, e
@@ -398,16 +391,16 @@ func loadRegistry(file string) (*Registry, error) {
 	if _, e = privateDir(s.AppsDirectory); e != nil {
 		return nil, e
 	}
-	if s.OAuthCredentialsFile, e = resolve(file, s.OAuthCredentialsFile, false); e != nil {
+	if s.OAuth.CredentialsFile, e = resolve(file, s.OAuth.CredentialsFile, false); e != nil {
 		return nil, e
 	}
-	if e = readJSON(s.OAuthCredentialsFile, &r.Auth); e != nil {
+	if e = readJSON(s.OAuth.CredentialsFile, &r.Auth); e != nil {
 		return nil, e
 	}
 	if e = r.Auth.validate(); e != nil {
 		return nil, e
 	}
-	if s.StateDirectory, e = resolve(file, s.StateDirectory, true); e != nil {
+	if s.OAuth.StateDirectory, e = resolve(file, s.OAuth.StateDirectory, true); e != nil {
 		return nil, e
 	}
 	entries, e := os.ReadDir(s.AppsDirectory)

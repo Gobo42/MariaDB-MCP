@@ -3,9 +3,12 @@
   "listen": "127.0.0.1:8810",
   "public_base_url": "https://mcp.example.invalid",
   "apps_directory": "apps.d",
-  "oauth_credentials_file": "oauth-credentials.json",
-  "state_directory": "/var/lib/mariadb-mcp",
-  "redirect_uris": [
-    "http://127.0.0.1:9876/callback"
-  ]
+  "oauth": {
+    "provider": "builtin",
+    "credentials_file": "oauth-credentials.json",
+    "state_directory": "/var/lib/mariadb-mcp",
+    "redirect_uris": [
+      "http://127.0.0.1:9876/callback"
+    ]
+  }
 }

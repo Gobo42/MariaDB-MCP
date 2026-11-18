@@ -212,7 +212,7 @@ func (a *oauthService) authorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	allowedRedirect := false
-	for _, uri := range a.registry.Server.RedirectURIs {
+	for _, uri := range a.registry.Server.OAuth.RedirectURIs {
 		allowedRedirect = allowedRedirect || q.Get("redirect_uri") == uri
 	}
 	challenge, e := base64.RawURLEncoding.DecodeString(q.Get("code_challenge"))

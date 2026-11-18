@@ -121,6 +121,9 @@ def main():
    unknown=rpc(base,access,"tools/call",{"name":"tapo__get_current_conditions","arguments":{"sensor_id":"unknown"}});assert unknown["isError"] and unknown["structuredContent"]["error"]["code"]=="not_found"
   finally:stop(proc)
   snapshot=(root/"state/oauth-state.json").read_text();assert tokens["access_token"] not in snapshot and tokens["refresh_token"] not in snapshot
+  settings=read(config)
+  settings["oauth"]={"provider":"builtin","credentials_file":settings.pop("oauth_credentials_file"),"state_directory":settings.pop("state_directory"),"redirect_uris":settings.pop("redirect_uris")}
+  write(config,settings)
   write(root/"apps.d/inventory.json",inventory)
   subprocess.run([args.binary,"check","--config",str(config)],check=True,stdout=subprocess.DEVNULL)
   proc=start(args.binary,config,base)
@@ -143,5 +146,5 @@ def main():
    status,_,_=request(base,"/agent/mcp","POST",json.dumps({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"inventory__get_item","arguments":{"id":"7"}}}),{"Content-Type":"application/json","Authorization":"Bearer "+access});assert status==403
    status,_,_=form(base,"/agent/oauth/token",{"grant_type":"refresh_token","client_id":auth["client_id"],"client_secret":auth["client_secret"],"resource":"https://mcp.example.invalid/agent/mcp","refresh_token":tokens["refresh_token"]});assert status==200,"refresh failed after restart"
   finally:stop(proc)
- print("Private acceptance passed: Tapo semantics, OAuth, MCP 2025-11-25, restart persistence, app discovery, challenge-guided read consent, separate read/write scopes and acknowledged writes.")
+ print("Private acceptance passed: Tapo semantics, OAuth, MCP 2025-11-25, legacy-to-nested OAuth configuration, restart persistence, app discovery, challenge-guided read consent, separate read/write scopes and acknowledged writes.")
 if __name__=="__main__":main()

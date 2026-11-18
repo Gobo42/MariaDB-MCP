@@ -58,7 +58,9 @@ sudo install -m 0755 bin/mariadb-mcp /usr/local/bin/mariadb-mcp
 ```
 
 Replace APP with the application ID. Put the actual HTTPS URL and exact callback
-allowlist in mcp.json. Keep the listener private. Examples contain placeholders
+allowlist in `oauth.redirect_uris` in mcp.json. See
+[Configure OAuth](../docs/oauth-configuration.md) for the supported provider and
+legacy configuration migration. Keep the listener private. Examples contain placeholders
 and private fixture callbacks.
 
 4. Rerun permissions after copying. If you have not generated and transferred
@@ -142,7 +144,7 @@ schemas and prepared metadata. The Tapo reader uses SELECT only on its four tabl
 The default listener is loopback-only. If your HTTPS proxy runs on a different
 host, configure listen with an interface and port reachable through your private
 network, and restrict access appropriately. Set public_base_url to your public
-HTTPS URL and redirect_uris to the exact callback supplied by your client.
+HTTPS URL and `oauth.redirect_uris` to the exact callback supplied by your client.
 
 Preserve the public Host and Authorization headers. For example, nginx can use
 proxy_set_header Host $host. Requests with unrelated Host or Origin values are

@@ -75,7 +75,9 @@ The harness prepares credentials through a terminal, initializes protected state
 checks startup metadata, and obtains tokens through the real login/consent/code
 flow. It verifies the four Tapo tools, missing/future/stale readings, tie-breaking,
 half-open ranges and truncation. It stops and restarts the same binary after
-adding inventory JSON and verifies old grants retain only Tapo access. It derives
+migrating flat OAuth settings to the nested `oauth` block and adding inventory
+JSON. It verifies old grants retain only Tapo access and refresh successfully
+without resetting state. It derives
 the read scopes from the new unauthenticated MCP challenge, completes fresh
 consent while the URL still requests only `tapo:read`, explicitly selects the new
 read permission, discovers both read apps and reads inventory. A write attempt
