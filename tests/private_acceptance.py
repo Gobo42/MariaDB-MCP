@@ -33,7 +33,7 @@ def form(base,path,values,cookie=None):
  return request(base,path,"POST",urllib.parse.urlencode(values),{"Content-Type":"application/x-www-form-urlencoded",**({"Cookie":cookie} if cookie else {})})
 def hidden(body,name):
  return html.unescape(re.search(r'name="'+name+r'" value="([^"]*)"',body.decode()).group(1))
-def acquire(base,auth,scopes,prefix="/agent"):
+def acquire(base,auth,scopes,prefix="/agent",selected_scopes=None):
  verifier=base64.urlsafe_b64encode(os.urandom(48)).decode().rstrip("=")
  challenge=base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
  resource="https://mcp.example.invalid"+prefix+"/mcp"
@@ -41,10 +41,25 @@ def acquire(base,auth,scopes,prefix="/agent"):
  status,h,body=request(base,prefix+"/oauth/authorize?"+urllib.parse.urlencode(params));assert status==200,"authorize failed"
  cookie=h["set-cookie"].split(";")[0];rid=hidden(body,"request_id")
  status,h,body=form(base,prefix+"/oauth/login",{"request_id":rid,"csrf":hidden(body,"csrf"),"username":"owner","password":"fixture-owner-password"},cookie);assert status==200,"login failed"
- status,h,body=form(base,prefix+"/oauth/consent",{"request_id":rid,"csrf":hidden(body,"csrf"),"decision":"approve"},cookie);assert status==303,"consent failed"
+ choices={}
+ for tag in re.findall(r'<input[^>]*type="checkbox"[^>]*>',body.decode()):
+  name=re.search(r'name="scope_([^"]+)"',tag)
+  assert name,"scope checkbox has no name"
+  choices[html.unescape(name[1])]=bool(re.search(r'\schecked(?:[\s=>]|$)',tag))
+ consent={"request_id":rid,"csrf":hidden(body,"csrf"),"decision":"approve"}
+ if choices:
+  assert {scope for scope,checked in choices.items() if checked}==set(scopes.split()),"consent defaults differ from URL scopes"
+  selected=(selected_scopes if selected_scopes is not None else scopes).split()
+  assert set(selected)<=choices.keys(),"selected scope absent from consent"
+  consent.update({"scope_"+scope:"on" for scope in selected})
+ else:
+  assert selected_scopes is None,"server does not offer selectable scopes"
+ status,h,body=form(base,prefix+"/oauth/consent",consent,cookie);assert status==303,"consent failed"
  callback=urllib.parse.parse_qs(urllib.parse.urlsplit(h["location"]).query);assert callback["state"]==["opaque <&>"] and callback["iss"]==["https://mcp.example.invalid/agent"]
  status,h,body=form(base,prefix+"/oauth/token",{"grant_type":"authorization_code","client_id":auth["client_id"],"client_secret":auth["client_secret"],"resource":resource,"code":callback["code"][0],"redirect_uri":params["redirect_uri"],"code_verifier":verifier});assert status==200,"code exchange failed"
- return json.loads(body)
+ token=json.loads(body)
+ assert token["scope"]==" ".join(sorted(set((selected_scopes if selected_scopes is not None else scopes).split()))),"token scopes differ from approval"
+ return token
 def rpc(base,token,method,params=None):
  body={"jsonrpc":"2.0","id":1,"method":method}
  if params is not None:body["params"]=params
@@ -68,8 +83,8 @@ def start(binary,config,base):
 def stop(proc):
  proc.send_signal(signal.SIGTERM);out,err=proc.communicate(timeout=10);assert proc.returncode==0,"graceful shutdown failed"
 def main():
- parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--binary",required=True);parser.add_argument("--previous-binary",help="Optional earlier implementation to issue tokens before the replacement starts");parser.add_argument("--tapo-app",required=True);parser.add_argument("--socket",default="/tmp/mcp-mariadb-data/test.sock");args=parser.parse_args()
- assert pathlib.Path(os.path.realpath(args.socket)).is_relative_to("/tmp"),"only /tmp fixture sockets are accepted"
+ parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--binary",required=True);parser.add_argument("--previous-binary",help="Optional earlier implementation to issue tokens before the replacement starts");parser.add_argument("--tapo-app",required=True);parser.add_argument("--socket",default="/build/tmp/mariadb-mcp-fixture/test.sock");args=parser.parse_args()
+ assert pathlib.Path(os.path.realpath(args.socket)).is_relative_to("/build/tmp"),"only /build/tmp fixture sockets are accepted"
  project=pathlib.Path(__file__).resolve().parents[1]
  with tempfile.TemporaryDirectory(prefix="mcp-acceptance-") as tmp:
   root=pathlib.Path(tmp);root.chmod(0o700)
@@ -111,12 +126,22 @@ def main():
   proc=start(args.binary,config,base)
   try:
    assert len(rpc(base,access,"tools/list")["tools"])==4,"old grants expanded on restart"
-   new=acquire(base,auth,"tapo:read inventory:read inventory:write")["access_token"]
+   status,h,_=request(base,"/agent/mcp","POST",json.dumps({"jsonrpc":"2.0","id":1,"method":"tools/list"}),{"Content-Type":"application/json"})
+   assert status==401,"missing token was not refused"
+   challenge=h.get("www-authenticate","")
+   hinted=re.search(r'(?:^|, )scope="([^"]+)"',challenge)
+   assert hinted and hinted[1]=="inventory:read tapo:read","new app missing from read scope challenge"
+   read_token=acquire(base,auth,"tapo:read",selected_scopes=hinted[1])["access_token"]
+   assert len(rpc(base,read_token,"tools/list")["tools"])==5,"challenge-guided grant cannot discover both read apps"
+   assert call(base,read_token,"inventory__get_item",{"id":"7"})["row_count"]==1
+   status,h,_=request(base,"/agent/mcp","POST",json.dumps({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"inventory__set_item_label","arguments":{}}}),{"Content-Type":"application/json","Authorization":"Bearer "+read_token})
+   assert status==403 and 'scope="inventory:write"' in h.get("www-authenticate","") and 'error="insufficient_scope"' in h["www-authenticate"],"write denial lacks exact scope guidance"
+   new=acquire(base,auth,"tapo:read",selected_scopes="tapo:read inventory:read inventory:write")["access_token"]
    assert len(rpc(base,new,"tools/list")["tools"])==6,"new app not discovered"
    item=call(base,new,"inventory__get_item",{"id":"7"})["rows"][0]
    result=call(base,new,"inventory__set_item_label",{"id":"7","label":"Private acceptance","expected_version":item["version"]});assert result["commit"]=="committed" and result["affected_rows"]==1
    status,_,_=request(base,"/agent/mcp","POST",json.dumps({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"inventory__get_item","arguments":{"id":"7"}}}),{"Content-Type":"application/json","Authorization":"Bearer "+access});assert status==403
    status,_,_=form(base,"/agent/oauth/token",{"grant_type":"refresh_token","client_id":auth["client_id"],"client_secret":auth["client_secret"],"resource":"https://mcp.example.invalid/agent/mcp","refresh_token":tokens["refresh_token"]});assert status==200,"refresh failed after restart"
   finally:stop(proc)
- print("Private acceptance passed: Tapo semantics, OAuth, MCP 2025-11-25, restart persistence, app discovery, separate read/write scopes and acknowledged writes.")
+ print("Private acceptance passed: Tapo semantics, OAuth, MCP 2025-11-25, restart persistence, app discovery, challenge-guided read consent, separate read/write scopes and acknowledged writes.")
 if __name__=="__main__":main()

@@ -13,13 +13,21 @@ PKCE, and durable hashed token grants. Configuration and credentials belong unde
 Build and test on the development box:
 
 ```sh
+export GOCACHE=/build/cache GOMODCACHE=/build/mod GOTMPDIR=/build/tmp
+export TMPDIR=/build/tmp
 go test -race ./...
 gofmt -l cmd internal
 go vet ./...
-mkdir -p dist
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/mariadb-mcp ./cmd/mariadb-mcp
 python3 deploy/test_install.py
+python3 deploy/test_package.py
+python3 deploy/package.py
 ```
+
+The packaging script requires a mounted, writable `/build`. It builds a static
+Linux amd64 executable and puts the finished archive and its `.sha256` sidecar
+under ignored `dist/`. All archive contents share the `mariadb-mcp/` top-level
+directory. See the [deployment guide](deploy/README.md) for verification and
+extraction. Compiler output, caches and test scratch stay on `/build`.
 
 Database and OAuth/MCP integration tests need the isolated socket fixture in
 [Private acceptance](docs/private-acceptance.md). They fail when it is missing;
@@ -76,3 +84,9 @@ Agent instructions, authoritative working specifications and plans remain
 ignored local documents. The application-format reference is shareable.
 
 The Go replacement accepts the existing version 1 app/connection/credential files and Rust-issued OAuth snapshots. Private transition acceptance verifies access and refresh after switching executables without resetting state.
+
+During sign-in, consent lists every scope from enabled applications and tools.
+Only scopes in the authorization URL are selected initially. Check additional
+read or write scopes to approve them, or uncheck scopes you do not want to grant.
+The issued token contains exactly the selected scopes; existing tokens and
+refreshes keep their previous permissions. Restart after changing app files.

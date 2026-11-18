@@ -6,8 +6,20 @@ directory helper performs no database administration.
 
 ## Before you begin
 
-Build locally using the commands in the [project README](../README.md). Transfer
-dist/mariadb-mcp, install.sh, and mariadb-mcp.service to the target.
+Build locally using `python3 deploy/package.py` and the `/build` settings in the
+[project README](../README.md). Transfer the printed archive and matching
+`.sha256` file from `dist/` to the target. Verify and extract them there:
+
+```sh
+sha256sum -c ARCHIVE_NAME.tar.gz.sha256
+tar -xzf ARCHIVE_NAME.tar.gz
+cd mariadb-mcp
+```
+
+Replace ARCHIVE_NAME with the archive basename printed by the packaging script,
+without its `.tar.gz` extension. Every archive entry is beneath `mariadb-mcp/`.
+Use an empty extraction destination to preserve an existing installation bundle.
+The package includes `bin/`, public examples, documentation and `deploy/` files.
 The release is a stripped, statically linked Linux x86-64 executable. It requires
 no glibc libraries. Check target architecture and execution before activation.
 The directory helper needs Python 3 and standard Linux account utilities.
@@ -22,7 +34,7 @@ the contents of credentials and tokens.
 1. Run the helper as root:
 
 ```sh
-sudo bash install.sh
+sudo bash deploy/install.sh
 ```
 
 It creates the unprivileged mcpagent account/group and mode-0700 directories:
@@ -32,7 +44,7 @@ It creates the unprivileged mcpagent account/group and mode-0700 directories:
 2. Install the compiled executable:
 
 ```sh
-sudo install -m 0755 mariadb-mcp /usr/local/bin/mariadb-mcp
+sudo install -m 0755 bin/mariadb-mcp /usr/local/bin/mariadb-mcp
 ```
 
 3. Copy your configured files using this layout:
@@ -53,7 +65,7 @@ and private fixture callbacks.
    OAuth credentials from a protected development directory, create them:
 
 ```sh
-sudo bash install.sh
+sudo bash deploy/install.sh
 sudo -u mcpagent /usr/local/bin/mariadb-mcp prepare-auth --output /etc/mariadb-mcp/oauth-credentials.json --username OWNER
 ```
 
@@ -76,7 +88,7 @@ and expected/actual datatype. Checking never executes configured DML.
 6. Install the unit after checks succeed:
 
 ```sh
-sudo install -m 0644 mariadb-mcp.service /etc/systemd/system/mariadb-mcp.service
+sudo install -m 0644 deploy/mariadb-mcp.service /etc/systemd/system/mariadb-mcp.service
 sudo systemctl daemon-reload
 ```
 
@@ -93,6 +105,17 @@ privileges nor expand OAuth consent.
 
 Copy files, stop the service, rerun permissions, run check, then restart it.
 The executable needs no rebuild. Obtain new consent for new app or write scopes.
+Fresh unauthenticated MCP requests advertise the enabled read scopes in the
+`WWW-Authenticate` header. Clients that follow this hint can request the updated
+read permissions without a manually maintained list. Existing tokens and tool
+refreshes retain their approved scopes. After login, consent lists every enabled
+read and write scope as a checkbox. Only scopes in the URL are checked by default;
+select additional scopes explicitly before approving. You can also uncheck a
+requested scope. At least one and at most 64 selections are required. An
+insufficient-scope tool call advertises its exact required permission.
+See [OAuth scopes and MCP calls](../docs/mariadb-mcp-app-format.md#oauth-scopes-and-mcp-calls)
+for client compatibility limits. Confirm the installed binary supports these
+challenges before relying on this workflow.
 
 ## Keep HTTP private until proxy acceptance
 

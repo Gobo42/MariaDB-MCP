@@ -127,11 +127,25 @@ func (a *oauthService) authenticate(r *http.Request) (authContext, error) {
 	}
 	return authContext{}, errAuth
 }
-func (a *oauthService) challenge(w http.ResponseWriter) {
+func (a *oauthService) scopeChallenge(scopes []string) string {
 	u, _ := url.Parse(a.registry.Server.PublicBaseURL)
 	u.Path = "/.well-known/oauth-protected-resource" + routePrefix(a.registry) + "/mcp"
 	u.RawPath = ""
-	w.Header().Set("WWW-Authenticate", "Bearer resource_metadata=\""+u.String()+"\"")
+	challenge := "Bearer resource_metadata=\"" + u.String() + "\""
+	if len(scopes) > 0 {
+		challenge += ", scope=\"" + strings.Join(scopes, " ") + "\""
+	}
+	return challenge
+}
+func (a *oauthService) challenge(w http.ResponseWriter) {
+	var scopes []string
+	for _, s := range a.scopeList() {
+		// Initial linking suggests reads; writes require an explicit request.
+		if strings.HasSuffix(s, ":read") {
+			scopes = append(scopes, s)
+		}
+	}
+	w.Header().Set("WWW-Authenticate", a.scopeChallenge(scopes))
 	oauthError(w, 401, "unauthorized")
 }
 func (a *oauthService) mcpHandler(d *database) http.Handler {
@@ -214,6 +228,7 @@ func (a *oauthService) mcpHandler(d *database) http.Handler {
 							}
 							for _, t := range app.Tools {
 								if t.Enabled && app.ID+"__"+t.Name == n && !hasScope(grant.grant, scope(app.ID, t)) {
+									w.Header().Set("WWW-Authenticate", a.scopeChallenge([]string{scope(app.ID, t)})+`, error="insufficient_scope", error_description="Additional authorization required"`)
 									oauthError(w, 403, "insufficient_scope")
 									return
 								}

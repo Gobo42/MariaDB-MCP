@@ -99,7 +99,7 @@ func TestOAuthFlow(t *testing.T) {
 	if !strings.Contains(policy, "form-action 'self' http://127.0.0.1:9876;") || strings.Contains(policy, "other.allowed.invalid") {
 		t.Fatal("consent policy does not allow only the selected callback origin")
 	}
-	resp = post("/agent/oauth/consent", url.Values{"request_id": {id}, "csrf": {hiddenValue(t, b, "csrf")}, "decision": {"approve"}})
+	resp = post("/agent/oauth/consent", url.Values{"request_id": {id}, "csrf": {hiddenValue(t, b, "csrf")}, "decision": {"approve"}, "scope_tapo:read": {"on"}})
 	resp.Body.Close()
 	if resp.StatusCode != 303 {
 		t.Fatal(resp.StatusCode)

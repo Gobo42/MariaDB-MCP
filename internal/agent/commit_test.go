@@ -48,7 +48,7 @@ func TestUnknownCommitIsNotRetried(t *testing.T) {
 			go func() {
 				defer connections.Done()
 				defer down.Close()
-				up, e := net.Dial("unix", "/tmp/mcp-mariadb-data/test.sock")
+				up, e := net.Dial("unix", "/build/tmp/mariadb-mcp-fixture/test.sock")
 				if e != nil {
 					return
 				}

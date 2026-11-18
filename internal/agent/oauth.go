@@ -266,22 +266,9 @@ func (a *oauthService) login(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	now := time.Now().UTC()
-	a.mu.Lock()
-	a.prune(now)
-	p := a.pending[f.Get("request_id")]
-	if p == nil || !a.matches(p, r, f.Get("csrf"), now) || p.authenticated || len(f.Get("password")) > 1024 || len(f.Get("username")) > 128 {
-		a.mu.Unlock()
-		oauthError(w, 400, "invalid_request")
+	if !a.acceptLoginAttempt(w, r, f, time.Now().UTC()) {
 		return
 	}
-	if len(a.attempts) >= 10 {
-		a.mu.Unlock()
-		oauthError(w, 429, "temporarily_unavailable")
-		return
-	}
-	a.attempts = append(a.attempts, now)
-	a.mu.Unlock()
 	select {
 	case a.passwordSlots <- struct{}{}:
 	default:
@@ -294,9 +281,32 @@ func (a *oauthService) login(w http.ResponseWriter, r *http.Request) {
 		oauthError(w, 401, "invalid_login")
 		return
 	}
+	a.showConsent(w, r, f)
+}
+
+func (a *oauthService) acceptLoginAttempt(w http.ResponseWriter, r *http.Request, f url.Values, now time.Time) bool {
+	a.mu.Lock()
+	a.prune(now)
+	p := a.pending[f.Get("request_id")]
+	if p == nil || !a.matches(p, r, f.Get("csrf"), now) || p.authenticated || len(f.Get("password")) > 1024 || len(f.Get("username")) > 128 {
+		a.mu.Unlock()
+		oauthError(w, 400, "invalid_request")
+		return false
+	}
+	if len(a.attempts) >= 10 {
+		a.mu.Unlock()
+		oauthError(w, 429, "temporarily_unavailable")
+		return false
+	}
+	a.attempts = append(a.attempts, now)
+	a.mu.Unlock()
+	return true
+}
+
+func (a *oauthService) showConsent(w http.ResponseWriter, r *http.Request, f url.Values) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	p = a.pending[f.Get("request_id")]
+	p := a.pending[f.Get("request_id")]
 	if p == nil || !a.matches(p, r, f.Get("csrf"), time.Now().UTC()) || p.authenticated {
 		oauthError(w, 400, "invalid_request")
 		return
@@ -308,16 +318,16 @@ func (a *oauthService) login(w http.ResponseWriter, r *http.Request) {
 	}
 	p.authenticated = true
 	p.csrf = csrf
-	scopes := ""
-	for _, s := range p.scopes {
-		scopes += "<li>" + html.EscapeString(s) + "</li>"
-	}
 	// Chromium also checks form-action when the consent POST redirects to the callback.
 	securityHeaders(w, p.request.Get("redirect_uri"))
-	page(w, "Approve access", "<p>The configured client requests:</p><ul>"+scopes+"</ul><form method=\"post\" action=\""+html.EscapeString(routePrefix(a.registry)+"/oauth/consent")+"\">"+hidden(f.Get("request_id"), csrf)+"<button type=\"submit\" name=\"decision\" value=\"approve\">Approve access</button> <button type=\"submit\" name=\"decision\" value=\"deny\">Deny access</button></form>")
+	page(w, "Approve access", "<p>Choose the access to grant. Scopes requested by the client are selected. Check any additional scopes you want to approve.</p><form method=\"post\" action=\""+html.EscapeString(routePrefix(a.registry)+"/oauth/consent")+"\">"+hidden(f.Get("request_id"), csrf)+"<fieldset><legend>Access scopes</legend>"+scopeChoices(a.scopeList(), p.scopes)+"</fieldset><button type=\"submit\" name=\"decision\" value=\"approve\">Approve access</button> <button type=\"submit\" name=\"decision\" value=\"deny\">Deny access</button></form>")
 }
 func (a *oauthService) consent(w http.ResponseWriter, r *http.Request) {
-	f, ok := formValues(w, r, []string{"request_id", "csrf", "decision"}, nil)
+	var choices []string
+	for _, s := range a.scopeList() {
+		choices = append(choices, "scope_"+s)
+	}
+	f, ok := formValues(w, r, []string{"request_id", "csrf", "decision"}, choices)
 	if !ok {
 		return
 	}
@@ -326,7 +336,7 @@ func (a *oauthService) consent(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	a.prune(now)
 	p := a.pending[f.Get("request_id")]
-	if p == nil || !p.authenticated || !a.matches(p, r, f.Get("csrf"), now) || (f.Get("decision") != "approve" && f.Get("decision") != "deny") {
+	if !a.validConsent(p, r, f, now) {
 		oauthError(w, 400, "invalid_request")
 		return
 	}
@@ -335,12 +345,17 @@ func (a *oauthService) consent(w http.ResponseWriter, r *http.Request) {
 	if f.Get("decision") == "deny" {
 		q.Add("error", "access_denied")
 	} else {
+		selected, ok := selectedConsentScopes(a.scopeList(), f)
+		if !ok {
+			oauthError(w, 400, "invalid_scope")
+			return
+		}
 		code, e := randomSecret()
 		if e != nil {
 			oauthError(w, 503, "temporarily_unavailable")
 			return
 		}
-		a.codes[digest(code)] = authCode{p.request, p.scopes, now.Add(time.Minute)}
+		a.codes[digest(code)] = authCode{p.request, selected, now.Add(time.Minute)}
 		q.Add("code", code)
 	}
 	delete(a.pending, f.Get("request_id"))

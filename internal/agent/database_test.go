@@ -24,7 +24,7 @@ func inventoryApp(t *testing.T) *App {
 	if e = decode(b, &a); e != nil {
 		t.Fatal(e)
 	}
-	a.connection = Connection{Socket: "/tmp/mcp-mariadb-data/test.sock", Database: "inventory"}
+	a.connection = Connection{Socket: "/build/tmp/mariadb-mcp-fixture/test.sock", Database: "inventory"}
 	a.credentials = Credentials{"mcp_inventory", "fixture-only-password"}
 	if e = a.validate(); e != nil {
 		t.Fatal(e)
@@ -127,7 +127,7 @@ func fixtureAdmin(t *testing.T) *sql.DB {
 	t.Helper()
 	cfg := mysql.NewConfig()
 	cfg.Net = "unix"
-	cfg.Addr = "/tmp/mcp-mariadb-data/test.sock"
+	cfg.Addr = "/build/tmp/mariadb-mcp-fixture/test.sock"
 	cfg.User = "root"
 	db, e := sql.Open("mysql", cfg.FormatDSN())
 	if e != nil {

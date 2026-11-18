@@ -577,8 +577,40 @@ Each application publishes `APP:read` when it has enabled query tools and
 `APP:write` when it has enabled execute tools. The write scope is never
 published for a read-only application. A token's write scope does not imply
 read scope, and vice versa. Consent names the requested applications and read
-or write access. Adding an application or write scope never upgrades existing
-persisted tokens.
+or write access. After login, all enabled scopes are offered as checkboxes, with
+only the authorization URL's scopes selected by default. Extra read and write
+scopes require explicit selection; requested scopes can be unchecked. The token
+response reports exactly the approved selection. At least one and at most 64
+scopes can be approved. Adding an application or write scope never upgrades
+existing persisted tokens.
+
+An unauthenticated MCP request returns HTTP 401 with a `WWW-Authenticate`
+challenge containing the protected-resource metadata URL and a sorted,
+deduplicated `scope` hint for all enabled read apps. Disabled apps and disabled
+tools contribute no scopes. Initial challenges omit write scopes; a service
+with only execute tools omits the scope hint, and its client must explicitly
+request a supported write scope. Both discovery documents continue advertising
+all supported read and write scopes.
+
+A call to an enabled tool without its required permission returns HTTP 403
+before database dispatch. Its `WWW-Authenticate` challenge names that tool's
+exact scope and includes `error="insufficient_scope"` and a fixed error
+description. The JSON body remains `{"error":"insufficient_scope"}`. This does
+not grant access or change a token. Clients decide when to reauthorize and
+which additional scopes to request; permission expansion requires fresh consent.
+
+After adding an app, restart to reload the JSON files, then reauthorize the client
+using the advertised scopes. A client following the initial challenge can request
+the enabled read apps without a manually maintained scope list. Refreshing tools
+with an existing token still lists only its authorized tools. If ChatGPT retains
+an earlier URL scope such as `tapo:read`, select the additional permissions on the
+consent page; no authorization-URL edit is needed with the selectable-consent
+build. The server does not silently add permissions. Clients receive the actual
+selection in the OAuth token response's `scope` field. A tool-specific challenge
+names only the required scope; retain previously granted scopes you still need
+when approving a new grant. The list comes from applications loaded at service
+startup; restart after changing app files. Multi-user roles are not implemented:
+the authenticated owner can select all enabled scopes.
 
 Tool listing exposes only tools authorized by the token's scopes; each call
 checks its tool's required scope. OAuth consent is authorization for the scope,
