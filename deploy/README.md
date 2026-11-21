@@ -154,3 +154,11 @@ Verify sign-in, explicit consent, tool discovery, a read-only query and token
 persistence across restart. Stop the service before running check. Keep protected
 configuration and token files unchanged when replacing the compiled executable;
 never rerun init-state to troubleshoot a connection.
+
+## Use an external sign-in provider
+
+Keep `oauth.provider` as `builtin` and configure the optional `oauth.login` block
+to use OIDC. Register MCP's callback at the IdP, retain the existing MCP credential
+file and token state, and verify discovery before activation. See
+[Configure external OIDC sign-in](../docs/oidc-sign-in.md). Do not deploy a provider
+configuration until its real issuer, allowed subject and callback have been tested.

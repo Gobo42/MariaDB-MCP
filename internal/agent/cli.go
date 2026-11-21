@@ -67,6 +67,10 @@ func Run(args []string) error {
 		}
 		return e
 	}
+	upstream, e := newOIDCLogin(context.Background(), registry, nil)
+	if e != nil {
+		return e
+	}
 	store, e := openStore(registry.Server.OAuth.StateDirectory, id)
 	if e != nil {
 		return e
@@ -82,6 +86,7 @@ func Run(args []string) error {
 		return nil
 	}
 	auth := newOAuth(registry, store)
+	auth.oidc = upstream
 	handler := auth.routes(db)
 	srv := &http.Server{Addr: registry.Server.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	listener, e := net.Listen("tcp", registry.Server.Listen)

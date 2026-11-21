@@ -368,7 +368,7 @@ func loadRegistry(file string) (*Registry, error) {
 	if e != nil {
 		return nil, e
 	}
-	r := &Registry{Server: Server{Listen: "127.0.0.1:8810", OAuth: OAuthSettings{StateDirectory: "/var/lib/mariadb-mcp"}}}
+	r := &Registry{Server: Server{Listen: "127.0.0.1:8810", OAuth: OAuthSettings{StateDirectory: "/var/lib/mariadb-mcp", Login: LoginSettings{Method: "password"}}}}
 	if e = readServer(file, &r.Server); e != nil {
 		return nil, e
 	}
@@ -401,6 +401,9 @@ func loadRegistry(file string) (*Registry, error) {
 		return nil, e
 	}
 	if s.OAuth.StateDirectory, e = resolve(file, s.OAuth.StateDirectory, true); e != nil {
+		return nil, e
+	}
+	if e = s.OAuth.Login.load(file); e != nil {
 		return nil, e
 	}
 	entries, e := os.ReadDir(s.AppsDirectory)

@@ -95,5 +95,6 @@ OAuth settings are grouped under `oauth` in `mcp.json`, with
 `"provider": "builtin"` preserving the built-in login, consent, and token behavior.
 Existing flat version-1 configurations remain supported. See
 [Configure OAuth](docs/oauth-configuration.md) for fields and a migration that
-preserves credentials and existing grants. External providers require additional
-implementation; an unsupported provider is rejected.
+preserves credentials and existing grants. External token issuers remain unsupported. Optional standards-based OIDC
+sign-in retains the built-in scope and token layer; see
+[Configure external OIDC sign-in](docs/oidc-sign-in.md).

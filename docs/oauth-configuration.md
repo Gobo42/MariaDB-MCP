@@ -42,7 +42,17 @@ The built-in provider retains password login, PKCE, selectable consent, refresh,
 and durable token state. Access-token and token-family lifetimes are unchanged.
 The provider setting establishes an explicit configuration boundary; selecting an
 external OAuth system also requires implementing support for that provider.
-Adding an issuer URL or choosing `oidc` does not enable an external provider.
+Choosing `oauth.provider: "oidc"` does not enable an external token issuer.
+For sign-in through an external IdP while keeping built-in consent and tokens,
+use the optional [oauth.login settings](oidc-sign-in.md).
+
+## Optional sign-in method
+
+`oauth.login` is optional and defaults to password sign-in. An explicit
+`{"method":"password"}` keeps that behavior. `{"method":"oidc", ...}` enables
+SP-initiated external identity verification followed by local consent. IdP
+credentials are separate from the existing OAuth credentials; see
+[Configure external OIDC sign-in](oidc-sign-in.md) for required fields and limits.
 
 ## Preserve credentials and token state
 

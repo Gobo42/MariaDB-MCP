@@ -14,6 +14,7 @@ import (
 )
 
 type pendingAuth struct {
+	upstream         *oidcAttempt
 	request          url.Values
 	scopes           []string
 	cookieHash, csrf string
@@ -26,6 +27,7 @@ type authCode struct {
 	expires time.Time
 }
 type oauthService struct {
+	oidc          *oidcLogin
 	registry      *Registry
 	identity      Identity
 	scopes        map[string]bool
@@ -258,10 +260,18 @@ func (a *oauthService) authorize(w http.ResponseWriter, r *http.Request) {
 	pub, _ := url.Parse(a.registry.Server.PublicBaseURL)
 	prefix := routePrefix(a.registry)
 	http.SetCookie(w, &http.Cookie{Name: "mcp_login", Value: cookie, Path: prefix + "/oauth", HttpOnly: true, Secure: r.Host == pub.Host, SameSite: http.SameSiteLaxMode, MaxAge: 300})
-	a.pending[id] = &pendingAuth{q, scopes, digest(cookie), csrf, false, now.Add(5 * time.Minute)}
+	a.pending[id] = &pendingAuth{request: q, scopes: scopes, cookieHash: digest(cookie), csrf: csrf, expires: now.Add(5 * time.Minute)}
+	if a.registry.Server.OAuth.Login.Method == "oidc" {
+		a.startOIDC(w, r, id)
+		return
+	}
 	page(w, "Sign in", "<p>Sign in to review the requested access.</p><form method=\"post\" action=\""+html.EscapeString(prefix+"/oauth/login")+"\">"+hidden(id, csrf)+"<p><label for=\"username\">Username</label><br><input id=\"username\" name=\"username\" autocomplete=\"username\" spellcheck=\"false\" autocorrect=\"off\" autocapitalize=\"none\" maxlength=\"128\" required></p><p><label for=\"current-password\">Password</label><br><input type=\"password\" id=\"current-password\" name=\"password\" autocomplete=\"current-password\" maxlength=\"1024\" required></p><button type=\"submit\">Sign in</button></form>")
 }
 func (a *oauthService) login(w http.ResponseWriter, r *http.Request) {
+	if a.registry.Server.OAuth.Login.Method == "oidc" {
+		w.WriteHeader(404)
+		return
+	}
 	f, ok := formValues(w, r, []string{"request_id", "csrf", "username", "password"}, nil)
 	if !ok {
 		return
@@ -466,7 +476,8 @@ func (a *oauthService) routes(database *database) http.Handler {
 			jsonReply(w, 200, map[string]any{"resource": a.identity.Resource, "authorization_servers": []string{routeURL(a.registry)}, "scopes_supported": a.scopeList(), "bearer_methods_supported": []string{"header"}})
 		},
 		prefix + "/oauth/authorize": a.authorize, prefix + "/oauth/login": a.login, prefix + "/oauth/consent": a.consent, prefix + "/oauth/token": a.token,
-		prefix + "/health": func(w http.ResponseWriter, r *http.Request) { jsonReply(w, 200, map[string]string{"status": "ok"}) },
+		prefix + "/oauth/oidc/callback": a.oidcCallback,
+		prefix + "/health":              func(w http.ResponseWriter, r *http.Request) { jsonReply(w, 200, map[string]string{"status": "ok"}) },
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		securityHeaders(w, "")

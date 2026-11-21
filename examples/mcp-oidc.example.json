@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "listen": "127.0.0.1:8810",
+  "public_base_url": "https://mcp.example.invalid",
+  "apps_directory": "apps.d",
+  "oauth": {
+    "provider": "builtin",
+    "credentials_file": "oauth-credentials.json",
+    "state_directory": "/var/lib/mariadb-mcp",
+    "redirect_uris": [
+      "http://127.0.0.1:9876/callback"
+    ],
+    "login": {
+      "method": "oidc",
+      "issuer": "https://identity.example.invalid",
+      "credentials_file": "oidc-login-credentials.json",
+      "allowed_subjects": [
+        "REPLACE_WITH_OWNER_SUBJECT"
+      ],
+      "token_endpoint_auth_method": "client_secret_basic"
+    }
+  }
+}

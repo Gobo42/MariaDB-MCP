@@ -32,7 +32,7 @@ func registryFixture(t *testing.T) (string, string) {
 	privateJSON(t, filepath.Join(root, "oauth.json"), AuthConfig{"owner", hash, "client", "secret"})
 	app := inventoryApp(t)
 	privateJSON(t, filepath.Join(root, "apps.d/inventory.json"), app)
-	privateJSON(t, filepath.Join(root, "connections/inventory.json"), Connection{Socket: "/tmp/mcp-mariadb-data/test.sock", Database: "inventory", CredentialsFile: "../credentials/inventory.json"})
+	privateJSON(t, filepath.Join(root, "connections/inventory.json"), Connection{Socket: "/build/tmp/mariadb-mcp-fixture/test.sock", Database: "inventory", CredentialsFile: "../credentials/inventory.json"})
 	privateJSON(t, filepath.Join(root, "credentials/inventory.json"), Credentials{"mcp_inventory", "fixture-only-password"})
 	file := filepath.Join(root, "mcp.json")
 	privateJSON(t, file, map[string]any{"version": 1, "public_base_url": "https://example.invalid/agent", "apps_directory": "apps.d///", "oauth_credentials_file": "oauth.json", "state_directory": "state///", "redirect_uris": []string{"http://127.0.0.1:9876/callback"}})

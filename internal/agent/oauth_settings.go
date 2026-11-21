@@ -7,10 +7,11 @@ import (
 
 // OAuthSettings describes the selected authorization provider without storing secrets.
 type OAuthSettings struct {
-	Provider        string   `json:"provider" required:"true"`
-	CredentialsFile string   `json:"credentials_file" required:"true"`
-	StateDirectory  string   `json:"state_directory"`
-	RedirectURIs    []string `json:"redirect_uris" required:"true"`
+	Login           LoginSettings `json:"login"`
+	Provider        string        `json:"provider" required:"true"`
+	CredentialsFile string        `json:"credentials_file" required:"true"`
+	StateDirectory  string        `json:"state_directory"`
+	RedirectURIs    []string      `json:"redirect_uris" required:"true"`
 }
 
 func readServer(file string, server *Server) error {
